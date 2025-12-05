@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { ARButton } from 'three/addons/webxr/ARButton.js';
+import { ARButton } from 'https://unpkg.com/three@0.160.0/examples/jsm/webxr/ARButton.js';
 
 let scene, camera, renderer, mixer, model;
 let ground;
@@ -260,3 +260,4 @@ function render(timestamp, frame) {
 
   renderer.render(scene, camera);
 }
+
