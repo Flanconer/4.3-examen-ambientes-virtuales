@@ -1,4 +1,4 @@
-// main.js (en la raíz del repo, junto a index.html)
+// main.js (en la raíz del repo, junto a index.html) 
 // Carpeta de modelos: ./models/fbx/Mutant Right Turn 45.fbx, etc.
 
 import * as THREE from 'three';
@@ -33,7 +33,7 @@ function init() {
     0.1,
     2000
   );
-  camera.position.set(200, 200, 300);
+  camera.position.set(0, 250, 600); // un poco más lejos
 
   // Luces
   const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 2);
@@ -120,35 +120,49 @@ function init() {
       .add(params, 'animation', ['mutant', 'goalkeeper', 'jump', 'pray', 'clap'])
       .name('Animación')
       .onChange((value) => fadeToAction(value));
+
+    // Botones inmersivos
+    setupAnimationButtons();
   });
 
   // Teclas para cambiar movimientos
   document.addEventListener('keydown', (event) => {
     switch (event.key) {
       case '1':
-        fadeToAction('mutant');
-        params.animation = 'mutant';
+        changeAnim('mutant');
         break;
       case '2':
-        fadeToAction('goalkeeper');
-        params.animation = 'goalkeeper';
+        changeAnim('goalkeeper');
         break;
       case '3':
-        fadeToAction('jump');
-        params.animation = 'jump';
+        changeAnim('jump');
         break;
       case '4':
-        fadeToAction('pray');
-        params.animation = 'pray';
+        changeAnim('pray');
         break;
       case '5':
-        fadeToAction('clap');
-        params.animation = 'clap';
+        changeAnim('clap');
         break;
     }
   });
 
   window.addEventListener('resize', onWindowResize);
+}
+
+// Botones HUD para cambiar animación
+function setupAnimationButtons() {
+  const buttons = document.querySelectorAll('#hud [data-anim]');
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const anim = btn.getAttribute('data-anim');
+      changeAnim(anim);
+    });
+  });
+}
+
+function changeAnim(name) {
+  fadeToAction(name);
+  params.animation = name;
 }
 
 // Colocar el modelo donde está la retícula al tocar en AR
@@ -168,7 +182,7 @@ function loadAnimation(loader, file, key) {
   });
 }
 
-// Normalizar tamaño y posición del modelo
+// Normalizar tamaño y posición del modelo y alejar más la cámara
 function normalizeModel(obj) {
   const box = new THREE.Box3().setFromObject(obj);
   const center = box.getCenter(new THREE.Vector3());
@@ -184,10 +198,11 @@ function normalizeModel(obj) {
   obj.position.y = newSize.y / 2;
 
   const newCenter = newBox.getCenter(new THREE.Vector3());
+  const distanceFactor = 3.5; // más lejos
   camera.position.set(
     newCenter.x,
-    newCenter.y + newSize.y,
-    newCenter.z + newSize.z * 2
+    newCenter.y + newSize.y * 1.2,
+    newCenter.z + newSize.z * distanceFactor
   );
   camera.lookAt(new THREE.Vector3(0, newSize.y / 2, 0));
 }
@@ -196,7 +211,9 @@ function normalizeModel(obj) {
 function fadeToAction(name) {
   const newAction = actions[name];
   if (newAction && newAction !== activeAction) {
-    activeAction.fadeOut(0.5);
+    if (activeAction) {
+      activeAction.fadeOut(0.5);
+    }
     newAction.reset().fadeIn(0.5).play();
     activeAction = newAction;
   }
