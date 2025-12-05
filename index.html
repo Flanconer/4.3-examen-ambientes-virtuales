@@ -12,17 +12,17 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #000;
+      background: #222;
       font-family: system-ui, sans-serif;
     }
 
-    /* HUD de botones inmersivos (sobre la vista AR) */
+    /* HUD de botones (solo se mostrará en modo AR) */
     #hud {
       position: fixed;
       bottom: 12px;
       left: 50%;
       transform: translateX(-50%);
-      display: flex;
+      display: none;              /* oculto por defecto */
       gap: 8px;
       padding: 8px 12px;
       border-radius: 999px;
@@ -47,7 +47,6 @@
     }
   </style>
 
-  <!-- Three.js desde CDN (para GitHub Pages) -->
   <script type="importmap">
     {
       "imports": {
@@ -58,7 +57,7 @@
   </script>
 </head>
 <body>
-  <!-- Botones inmersivos para cambiar animación -->
+  <!-- Botones inmersivos (HUD sobre la vista AR) -->
   <div id="hud">
     <button data-anim="mutant">Mutant</button>
     <button data-anim="goalkeeper">Goalkeeper</button>
@@ -67,6 +66,6 @@
     <button data-anim="clap">Clap</button>
   </div>
 
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="./main.js"></script>
 </body>
 </html>
