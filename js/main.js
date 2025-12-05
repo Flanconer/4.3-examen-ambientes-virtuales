@@ -1,8 +1,11 @@
-import * as THREE from '../build/three.module.js';
-import { OrbitControls } from '../jsm/controls/OrbitControls.js';
-import { FBXLoader } from '../jsm/loaders/FBXLoader.js';
-import { GUI } from '../jsm/libs/lil-gui.module.min.js';
-import { ARButton } from 'https://unpkg.com/three@0.160.0/examples/jsm/webxr/ARButton.js';
+// main.js (en la raíz del repo, junto a index.html)
+// Carpeta de modelos: ./models/fbx/Mutant Right Turn 45.fbx, etc.
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { ARButton } from 'three/addons/webxr/ARButton.js';
 
 let scene, camera, renderer, mixer, model;
 let ground;
@@ -10,7 +13,7 @@ const clock = new THREE.Clock();
 
 const actions = {};
 let activeAction;
-const params = { animation: "mutant" };
+const params = { animation: 'mutant' };
 
 // AR / WebXR
 let controller, reticle;
@@ -70,7 +73,7 @@ function init() {
   controls.target.set(0, 100, 0);
   controls.update();
 
-  // Retícula AR para colocar el modelo
+  // Retícula AR
   reticle = new THREE.Mesh(
     new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
     new THREE.MeshBasicMaterial({ color: 0x00ff00 })
@@ -86,7 +89,7 @@ function init() {
   // Loader FBX
   const loader = new FBXLoader();
 
-  loader.load('../models/fbx/Mutant Right Turn 45.fbx', (obj) => {
+  loader.load('models/fbx/Mutant Right Turn 45.fbx', (obj) => {
     obj.traverse((child) => {
       if (child.isMesh) {
         child.castShadow = true;
@@ -102,30 +105,46 @@ function init() {
 
     if (obj.animations.length > 0) {
       const action = mixer.clipAction(obj.animations[0]);
-      actions["mutant"] = action;
+      actions['mutant'] = action;
       activeAction = action;
       activeAction.play();
     }
 
-    loadAnimation(loader, "Goalkeeper Scoop.fbx", "goalkeeper");
-    loadAnimation(loader, "Jumping Down.fbx", "jump");
-    loadAnimation(loader, "Praying.fbx", "pray");
-    loadAnimation(loader, "Sitting Clap.fbx", "clap");
+    loadAnimation(loader, 'Goalkeeper Scoop.fbx', 'goalkeeper');
+    loadAnimation(loader, 'Jumping Down.fbx', 'jump');
+    loadAnimation(loader, 'Praying.fbx', 'pray');
+    loadAnimation(loader, 'Sitting Clap.fbx', 'clap');
 
     const gui = new GUI();
-    gui.add(params, "animation", ["mutant", "goalkeeper", "jump", "pray", "clap"])
-      .name("Animación")
+    gui
+      .add(params, 'animation', ['mutant', 'goalkeeper', 'jump', 'pray', 'clap'])
+      .name('Animación')
       .onChange((value) => fadeToAction(value));
   });
 
   // Teclas para cambiar movimientos
-  document.addEventListener("keydown", (event) => {
+  document.addEventListener('keydown', (event) => {
     switch (event.key) {
-      case "1": fadeToAction("mutant"); params.animation = "mutant"; break;
-      case "2": fadeToAction("goalkeeper"); params.animation = "goalkeeper"; break;
-      case "3": fadeToAction("jump"); params.animation = "jump"; break;
-      case "4": fadeToAction("pray"); params.animation = "pray"; break;
-      case "5": fadeToAction("clap"); params.animation = "clap"; break;
+      case '1':
+        fadeToAction('mutant');
+        params.animation = 'mutant';
+        break;
+      case '2':
+        fadeToAction('goalkeeper');
+        params.animation = 'goalkeeper';
+        break;
+      case '3':
+        fadeToAction('jump');
+        params.animation = 'jump';
+        break;
+      case '4':
+        fadeToAction('pray');
+        params.animation = 'pray';
+        break;
+      case '5':
+        fadeToAction('clap');
+        params.animation = 'clap';
+        break;
     }
   });
 
@@ -141,7 +160,7 @@ function onSelect() {
 
 // Cargar animaciones adicionales
 function loadAnimation(loader, file, key) {
-  loader.load(`../models/fbx/${file}`, (animObj) => {
+  loader.load(`models/fbx/${file}`, (animObj) => {
     if (animObj.animations.length > 0) {
       const action = mixer.clipAction(animObj.animations[0]);
       actions[key] = action;
@@ -149,6 +168,7 @@ function loadAnimation(loader, file, key) {
   });
 }
 
+// Normalizar tamaño y posición del modelo
 function normalizeModel(obj) {
   const box = new THREE.Box3().setFromObject(obj);
   const center = box.getCenter(new THREE.Vector3());
@@ -199,24 +219,26 @@ function render(timestamp, frame) {
 
   const session = renderer.xr.getSession();
 
-  if (frame && session) {
-    // Ocultar el piso en modo AR
-    ground.visible = !renderer.xr.isPresenting;
+  // Ocultar el piso cuando está en AR
+  ground.visible = !renderer.xr.isPresenting;
 
+  if (frame && session) {
     const referenceSpace = renderer.xr.getReferenceSpace();
 
     if (!hitTestSourceRequested) {
       session.requestReferenceSpace('viewer').then((viewerSpace) => {
-        session.requestHitTestSource({ space: viewerSpace }).then((source) => {
-          hitTestSource = source;
-        });
-      });
+        session
+          .requestHitTestSource({ space: viewerSpace })
+          .then((source) => {
+            hitTestSource = source;
+          });
 
-      session.addEventListener('end', () => {
-        hitTestSourceRequested = false;
-        hitTestSource = null;
-        reticle.visible = false;
-        ground.visible = true;
+        session.addEventListener('end', () => {
+          hitTestSourceRequested = false;
+          hitTestSource = null;
+          reticle.visible = false;
+          ground.visible = true;
+        });
       });
 
       hitTestSourceRequested = true;
