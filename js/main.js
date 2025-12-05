@@ -1,4 +1,4 @@
-// main.js (en la raíz del repo, junto a index.html) 
+// main.js (en la raíz del repo, junto a index.html)
 // Carpeta de modelos: ./models/fbx/Mutant Right Turn 45.fbx, etc.
 
 import * as THREE from 'three';
@@ -20,6 +20,11 @@ let controller, reticle;
 let hitTestSource = null;
 let hitTestSourceRequested = false;
 
+// Botones 3D inmersivos
+let buttonsGroup;
+const raycaster = new THREE.Raycaster();
+const tempMatrix = new THREE.Matrix4();
+
 init();
 animate();
 
@@ -33,7 +38,7 @@ function init() {
     0.1,
     2000
   );
-  camera.position.set(0, 250, 600); // un poco más lejos
+  camera.position.set(0, 250, 600); // cámara un poco más lejos
 
   // Luces
   const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 2);
@@ -98,7 +103,7 @@ function init() {
     });
 
     scene.add(obj);
-    normalizeModel(obj);
+    normalizeModel(obj); // aquí lo hacemos más pequeño / más lejos
 
     model = obj;
     mixer = new THREE.AnimationMixer(model);
@@ -121,8 +126,8 @@ function init() {
       .name('Animación')
       .onChange((value) => fadeToAction(value));
 
-    // Botones inmersivos
-    setupAnimationButtons();
+    // Crear botones inmersivos dentro del mundo AR
+    createARButtons();
   });
 
   // Teclas para cambiar movimientos
@@ -149,15 +154,32 @@ function init() {
   window.addEventListener('resize', onWindowResize);
 }
 
-// Botones HUD para cambiar animación
-function setupAnimationButtons() {
-  const buttons = document.querySelectorAll('#hud [data-anim]');
-  buttons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const anim = btn.getAttribute('data-anim');
-      changeAnim(anim);
-    });
-  });
+// Botones 3D que flotan frente al modelo
+function createARButtons() {
+  if (!model) return;
+
+  buttonsGroup = new THREE.Group();
+  model.add(buttonsGroup); // se mueven junto con el modelo
+
+  const radius = 0.08; // tamaño pequeño para AR
+  const geo = new THREE.CircleGeometry(radius, 32);
+
+  function addButton(x, y, z, color, animName) {
+    const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    mesh.userData.anim = animName;
+    buttonsGroup.add(mesh);
+  }
+
+  // Colocamos una fila de botones delante del personaje
+  const distZ = 0.4; // 40 cm delante del modelo aprox.
+  const h = 1.0;     // altura aproximada del pecho
+  addButton(-0.3, h, distZ, 0x00ff00, 'mutant');
+  addButton(-0.15, h, distZ, 0x0000ff, 'goalkeeper');
+  addButton(0.0, h, distZ, 0xffff00, 'jump');
+  addButton(0.15, h, distZ, 0xff00ff, 'pray');
+  addButton(0.3, h, distZ, 0xff0000, 'clap');
 }
 
 function changeAnim(name) {
@@ -166,7 +188,25 @@ function changeAnim(name) {
 }
 
 // Colocar el modelo donde está la retícula al tocar en AR
+// y también detectar toques en los botones 3D
 function onSelect() {
+  // 1) Revisar si tocamos un botón inmersivo
+  if (buttonsGroup) {
+    tempMatrix.identity().extractRotation(controller.matrixWorld);
+    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+    const intersects = raycaster.intersectObjects(buttonsGroup.children, true);
+    if (intersects.length > 0) {
+      const anim = intersects[0].object.userData.anim;
+      if (anim) {
+        changeAnim(anim);
+        return; // no mover el modelo si se tocó un botón
+      }
+    }
+  }
+
+  // 2) Si no se tocó un botón, usamos la retícula para posicionar el modelo
   if (reticle.visible && model) {
     model.position.setFromMatrixPosition(reticle.matrix);
   }
@@ -182,23 +222,30 @@ function loadAnimation(loader, file, key) {
   });
 }
 
-// Normalizar tamaño y posición del modelo y alejar más la cámara
+// Normalizar tamaño y posición del modelo y alejarlo (escala AR)
 function normalizeModel(obj) {
   const box = new THREE.Box3().setFromObject(obj);
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
 
-  obj.position.sub(center); // centrar
-  const maxAxis = Math.max(size.x, size.y, size.z);
-  obj.scale.multiplyScalar(200 / maxAxis);
+  // Centrar
+  obj.position.sub(center);
 
+  // Escala para que el modelo mida aprox. 1.6 m de alto en AR
+  const maxAxis = Math.max(size.x, size.y, size.z);
+  const targetHeight = 1.6; // metros aprox.
+  obj.scale.multiplyScalar(targetHeight / maxAxis);
+
+  // Recalcular bounding box
   const newBox = new THREE.Box3().setFromObject(obj);
   const newSize = newBox.getSize(new THREE.Vector3());
 
+  // Colocar sobre el piso
   obj.position.y = newSize.y / 2;
 
+  // Ajustar cámara un poco lejos para vista normal (no AR)
   const newCenter = newBox.getCenter(new THREE.Vector3());
-  const distanceFactor = 3.5; // más lejos
+  const distanceFactor = 3.5;
   camera.position.set(
     newCenter.x,
     newCenter.y + newSize.y * 1.2,
