@@ -1,5 +1,4 @@
-// main.js (en la raíz del repo)
-// Modelos en: ./models/fbx/Mutant Right Turn 45.fbx, etc.
+// main.js (reemplaza todo tu archivo por este)
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -20,10 +19,11 @@ let controller, reticle;
 let hitTestSource = null;
 let hitTestSourceRequested = false;
 
-// Botones inmersivos 3D
-let buttonsGroup;
+// Botones 3D
+let buttonsGroup = null;
 const raycaster = new THREE.Raycaster();
 const tempMatrix = new THREE.Matrix4();
+let modelHeight = 1.6; // se actualiza en normalizeModel
 
 init();
 animate();
@@ -38,9 +38,8 @@ function init() {
     0.1,
     2000
   );
-  camera.position.set(0, 250, 600); // un poco más lejos
+  camera.position.set(0, 250, 600);
 
-  // Luces
   const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 2);
   hemiLight.position.set(0, 200, 0);
   scene.add(hemiLight);
@@ -50,7 +49,6 @@ function init() {
   dirLight.castShadow = true;
   scene.add(dirLight);
 
-  // Piso (solo modo normal, se ocultará en AR)
   ground = new THREE.Mesh(
     new THREE.PlaneGeometry(2000, 2000),
     new THREE.MeshPhongMaterial({ color: 0x444444, depthWrite: true })
@@ -59,7 +57,6 @@ function init() {
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -67,7 +64,6 @@ function init() {
   renderer.xr.enabled = true;
   document.body.appendChild(renderer.domElement);
 
-  // Botón AR
   document.body.appendChild(
     ARButton.createButton(renderer, {
       requiredFeatures: ['hit-test']
@@ -78,7 +74,6 @@ function init() {
   controls.target.set(0, 100, 0);
   controls.update();
 
-  // Retícula AR
   reticle = new THREE.Mesh(
     new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
     new THREE.MeshBasicMaterial({ color: 0x00ff00 })
@@ -91,7 +86,6 @@ function init() {
   controller.addEventListener('select', onSelect);
   scene.add(controller);
 
-  // Loader FBX
   const loader = new FBXLoader();
 
   loader.load('models/fbx/Mutant Right Turn 45.fbx', (obj) => {
@@ -103,7 +97,7 @@ function init() {
     });
 
     scene.add(obj);
-    normalizeModel(obj); // escala y aleja
+    normalizeModel(obj); // aquí se ajusta altura y modelHeight
 
     model = obj;
     mixer = new THREE.AnimationMixer(model);
@@ -126,63 +120,53 @@ function init() {
       .name('Animación')
       .onChange((value) => fadeToAction(value));
 
-    // Crear botones inmersivos alrededor del personaje
-    createImmersiveButtons();
+    createImmersiveButtons(); // crea los botones arriba del modelo
   });
 
-  // Teclas para cambiar movimientos (modo normal)
   document.addEventListener('keydown', (event) => {
     switch (event.key) {
-      case '1':
-        changeAnim('mutant');
-        break;
-      case '2':
-        changeAnim('goalkeeper');
-        break;
-      case '3':
-        changeAnim('jump');
-        break;
-      case '4':
-        changeAnim('pray');
-        break;
-      case '5':
-        changeAnim('clap');
-        break;
+      case '1': changeAnim('mutant'); break;
+      case '2': changeAnim('goalkeeper'); break;
+      case '3': changeAnim('jump'); break;
+      case '4': changeAnim('pray'); break;
+      case '5': changeAnim('clap'); break;
     }
   });
 
   window.addEventListener('resize', onWindowResize);
 }
 
-// Botones 3D inmersivos, flotando frente al modelo
+// ---------- BOTONES 3D ----------
+
 function createImmersiveButtons() {
   if (!model) return;
 
+  // grupo independiente, pero colocado sobre el modelo
   buttonsGroup = new THREE.Group();
-  model.add(buttonsGroup); // se mueven junto con el personaje
+  scene.add(buttonsGroup);
 
-  const radius = 0.06; // tamaño del botón (metros aprox.)
+  // posición del grupo: justo encima de la cabeza del modelo
+  buttonsGroup.position.copy(model.position);
+  buttonsGroup.position.y += modelHeight + 0.15;
+
+  const radius = 0.1; // más grandes para que se vean
   const geo = new THREE.SphereGeometry(radius, 16, 16);
 
-  function addButton(x, y, z, color, animName) {
-    const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4 });
+  function addButton(x, z, color, animName) {
+    const mat = new THREE.MeshBasicMaterial({ color }); // siempre brillante
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(x, y, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.position.set(x, 0, z);
     mesh.userData.anim = animName;
     buttonsGroup.add(mesh);
   }
 
-  // fila de botones frente al pecho del personaje
-  const z = 0.45;   // delante del modelo
-  const y = 1.2;    // altura aprox. del pecho
-
-  addButton(-0.30, y, z, 0x00ff00, 'mutant');
-  addButton(-0.15, y, z, 0x0000ff, 'goalkeeper');
-  addButton( 0.00, y, z, 0xffff00, 'jump');
-  addButton( 0.15, y, z, 0xff00ff, 'pray');
-  addButton( 0.30, y, z, 0xff0000, 'clap');
+  const sep = 0.25;
+  const z = 0; // todos en la misma profundidad
+  addButton(-2 * sep, z, 0x00ff00, 'mutant');
+  addButton(-1 * sep, z, 0x0000ff, 'goalkeeper');
+  addButton(0,        z, 0xffff00, 'jump');
+  addButton(1 * sep,  z, 0xff00ff, 'pray');
+  addButton(2 * sep,  z, 0xff0000, 'clap');
 }
 
 function changeAnim(name) {
@@ -190,9 +174,10 @@ function changeAnim(name) {
   params.animation = name;
 }
 
-// Colocar modelo o activar botones al tocar en AR
+// ---------- INTERACCIÓN AR ----------
+
 function onSelect() {
-  // 1) Revisar si se tocó un botón inmersivo
+  // primero: revisar si se tocó un botón
   if (buttonsGroup) {
     tempMatrix.identity().extractRotation(controller.matrixWorld);
     raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
@@ -203,18 +188,25 @@ function onSelect() {
       const animName = intersects[0].object.userData.anim;
       if (animName) {
         changeAnim(animName);
-        return; // no reposicionar el modelo
+        return; // no mover modelo
       }
     }
   }
 
-  // 2) Si no se tocó botón, usar la retícula para colocar el modelo
+  // si no se tocó botón, mover modelo con la retícula
   if (reticle.visible && model) {
     model.position.setFromMatrixPosition(reticle.matrix);
+
+    // mover también el grupo de botones encima del modelo
+    if (buttonsGroup) {
+      buttonsGroup.position.copy(model.position);
+      buttonsGroup.position.y += modelHeight + 0.15;
+    }
   }
 }
 
-// Cargar animaciones adicionales
+// ---------- ANIMACIONES ----------
+
 function loadAnimation(loader, file, key) {
   loader.load(`models/fbx/${file}`, (animObj) => {
     if (animObj.animations.length > 0) {
@@ -224,20 +216,20 @@ function loadAnimation(loader, file, key) {
   });
 }
 
-// Normalizar tamaño y posición del modelo (escala para AR)
 function normalizeModel(obj) {
   const box = new THREE.Box3().setFromObject(obj);
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
 
-  obj.position.sub(center); // centrar en el origen
+  obj.position.sub(center);
 
   const maxAxis = Math.max(size.x, size.y, size.z);
-  const targetHeight = 1.6; // ~1.6 m de alto
+  const targetHeight = 1.6;
   obj.scale.multiplyScalar(targetHeight / maxAxis);
 
   const newBox = new THREE.Box3().setFromObject(obj);
   const newSize = newBox.getSize(new THREE.Vector3());
+  modelHeight = newSize.y; // altura real ya escalada
 
   obj.position.y = newSize.y / 2;
 
@@ -251,7 +243,6 @@ function normalizeModel(obj) {
   camera.lookAt(new THREE.Vector3(0, newSize.y / 2, 0));
 }
 
-// Transición entre animaciones
 function fadeToAction(name) {
   const newAction = actions[name];
   if (newAction && newAction !== activeAction) {
@@ -261,13 +252,14 @@ function fadeToAction(name) {
   }
 }
 
+// ---------- RENDER LOOP ----------
+
 function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// Loop de render + lógica AR
 function animate() {
   renderer.setAnimationLoop(render);
 }
@@ -277,20 +269,21 @@ function render(timestamp, frame) {
   if (mixer) mixer.update(delta);
 
   const session = renderer.xr.getSession();
-
-  // Ocultar piso en modo AR
   ground.visible = !renderer.xr.isPresenting;
+
+  // los botones solo se ven en AR
+  if (buttonsGroup) {
+    buttonsGroup.visible = renderer.xr.isPresenting;
+  }
 
   if (frame && session) {
     const referenceSpace = renderer.xr.getReferenceSpace();
 
     if (!hitTestSourceRequested) {
       session.requestReferenceSpace('viewer').then((viewerSpace) => {
-        session
-          .requestHitTestSource({ space: viewerSpace })
-          .then((source) => {
-            hitTestSource = source;
-          });
+        session.requestHitTestSource({ space: viewerSpace }).then((source) => {
+          hitTestSource = source;
+        });
 
         session.addEventListener('end', () => {
           hitTestSourceRequested = false;
